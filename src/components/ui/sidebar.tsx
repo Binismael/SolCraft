@@ -560,14 +560,14 @@ const sidebarMenuButtonVariants = cva(
 
 export interface SidebarMenuButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    React.AnchorHTMLAttributes<HTMLAnchorElement>,
+    React.AnchorHTMLAttributes<HTMLAnchorElement>, // Added to support anchor specific props like href when used with Link
     VariantProps<typeof sidebarMenuButtonVariants> {
   asChild?: boolean;
   isActive?: boolean;
 }
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLElement, 
+  HTMLElement, // Can be button or a (or Slot)
   SidebarMenuButtonProps
 >(
   (props, ref) => {
@@ -575,18 +575,28 @@ const SidebarMenuButton = React.forwardRef<
       className,
       variant,
       size,
-      asChild: explicitAsChild, 
+      asChild: explicitAsChild, // This is SidebarMenuButton's own asChild prop definition
       isActive = false,
       children,
-      ...otherProps 
+      ...otherProps // This will capture any props passed from Link, including its `asChild`
     } = props;
 
+    // Determine if the component should render as a Slot.
+    // It should be a Slot if SidebarMenuButton's own asChild prop is true,
+    // OR if an `asChild` prop is passed down from a parent component (like `Link`).
     const compShouldBeSlot = explicitAsChild || (otherProps as any).asChild;
     const Comp = compShouldBeSlot ? Slot : "button";
     
-    const finalProps = { ...otherProps };
-    if ((otherProps as any).asChild && compShouldBeSlot) {
-      delete (finalProps as any).asChild;
+    // Prepare the final props for the component to be rendered (Slot or button).
+    // Start by copying all `otherProps`.
+    const finalProps: any = { ...otherProps };
+
+    // If an `asChild` prop was present in `otherProps` (meaning it came from a parent like `Link`),
+    // and we decided `Comp` should be `Slot` because of it,
+    // then we must delete `asChild` from `finalProps` so it's not passed to the `<Slot>` primitive itself.
+    // The `<Slot>` primitive uses the presence of its own children to behave like `asChild`, it doesn't take an `asChild` prop.
+    if ((otherProps as any).asChild !== undefined && compShouldBeSlot) {
+      delete finalProps.asChild;
     }
     
     return (
@@ -596,7 +606,7 @@ const SidebarMenuButton = React.forwardRef<
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
-        {...finalProps} 
+        {...finalProps} // Spread the cleaned props
       >
         {children}
       </Comp>
@@ -780,6 +790,7 @@ export {
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
-  SheetTitle,
+  SheetTitle, // SheetTitle might be exported here if Sidebar uses Sheet internally for mobile
   useSidebar,
 }
+
